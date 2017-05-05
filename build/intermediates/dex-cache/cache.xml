@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<items version="2" >
+
+    <item
+        is-multidex="false"
+        jar="C:\Users\Bobby\.android\build-cache\f439da0a5ca14f22666d7833d555897a2d016b20\output\jars\classes.jar"
+        jumboMode="false"
+        optimize="true"
+        revision="25.0.2"
+        sha1="1ee588ff2c4daf7b97c1cbf922a6c7f027285c2f">
+        <dex dex="C:\Users\Bobby\Documents\GitHub\Doppler-master\app\build\intermediates\pre-dexed\debug\classes_28a36e5673d723f7cac5f70fb6ad053215613e33.jar" />
+    </item>
+    <item
+        is-multidex="false"
+        jar="C:\Users\Bobby\.android\build-cache\f439da0a5ca14f22666d7833d555897a2d016b20\output\jars\libs\internal_impl-22.2.0.jar"
+        jumboMode="false"
+        optimize="true"
+        revision="25.0.2"
+        sha1="57f2ab85c164ff1676ec64dee787981c046fab79">
+        <dex dex="C:\Users\Bobby\Documents\GitHub\Doppler-master\app\build\intermediates\pre-dexed\debug\internal_impl-22.2.0_37930fcbad678965adb03d425cc4787a4b4a9408.jar" />
+    </item>
+    <item
+        is-multidex="false"
+        jar="C:\Users\Bobby\.android\build-cache\3f6ec8c576ed2ca1c96b3c3273c812097c771116\output\jars\classes.jar"
+        jumboMode="false"
+        optimize="true"
+        revision="25.0.2"
+        sha1="73753982da6bde518f3a4c6b372749981d14d1a0">
+        <dex dex="C:\Users\Bobby\Documents\GitHub\Doppler-master\app\build\intermediates\pre-dexed\debug\classes_0ce4031776437e104d7304262d8c4a40b9bd23c2.jar" />
+    </item>
+    <item
+        is-multidex="false"
+        jar="C:\Users\Bobby\AppData\Local\Android\sdk\extras\android\m2repository\com\android\support\support-annotations\22.2.0\support-annotations-22.2.0.jar"
+        jumboMode="false"
+        optimize="true"
+        revision="25.0.2"
+        sha1="66b42a1f3eb7676070b7ef7f14b603483aecbee1">
+        <dex dex="C:\Users\Bobby\Documents\GitHub\Doppler-master\app\build\intermediates\pre-dexed\debug\support-annotations-22.2.0_691c0344afe2a085df3605f09a4fb6c5c12b233f.jar" />
+    </item>
+
+</items>
