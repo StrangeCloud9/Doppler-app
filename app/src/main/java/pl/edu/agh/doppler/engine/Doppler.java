@@ -1,17 +1,31 @@
 package pl.edu.agh.doppler.engine;
 
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.content.Intent;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.os.Handler;
 import android.util.Log;
+import android.widget.Toast;
 
+import java.io.IOException;
+import java.util.Set;
+import java.util.UUID;
+
+import pl.edu.agh.doppler.MainActivity;
+import pl.edu.agh.doppler.Pub;
 import pl.edu.agh.doppler.fft.FFT;
 
 public class Doppler {
 
     /** Inner instance. We want it to be sun*/
-    private static Doppler doppler;
+    public static Doppler doppler;
+    public static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    private String TAG = "doppler!!";
+    public BluetoothAdapter mBluetoothAdapter = null;
+    public BluetoothDevice mDevice = null;
 
     //prelimiary frequency stuff
     public static final float PRELIM_FREQ = 20000;
@@ -24,69 +38,69 @@ public class Doppler {
 
     //modded from the soundwave paper. frequency bins are scanned until the amp drops below
     // 1% of the primary tone peak
-    private static final double MAX_VOL_RATIO_DEFAULT = 0.1;
-    private static final double SECOND_PEAK_RATIO = 0.3;
+    public static final double MAX_VOL_RATIO_DEFAULT = 0.1;
+    public static final double SECOND_PEAK_RATIO = 0.3;
     public static double maxVolRatio = MAX_VOL_RATIO_DEFAULT;
 
     //for bandwidth positions in array
-    private static final int LEFT_BANDWIDTH = 0;
-    private static final int RIGHT_BANDWIDTH = 1;
+    public static final int LEFT_BANDWIDTH = 0;
+    public static final int RIGHT_BANDWIDTH = 1;
 
     //I want to add smoothing
-    private static final float SMOOTHING_TIME_CONSTANT = 0.5f;
+    public static final float SMOOTHING_TIME_CONSTANT = 0.5f;
 
     //utility variables for reading and parsing through audio data.
     /** Microphone reference. */
-    private AudioRecord microphone;
+    public AudioRecord microphone;
 
     /** Tone player. */
-    private Player player;
+    public Player player;
 
     /**
      * Sampling frequency - 44,1kHz
      * @see <a href="http://pl.wikipedia.org/wiki/Próbkowanie">Wikipedia</a>
      */
-    private static final int SAMPLE_RATE = 44100;
+    public static final int SAMPLE_RATE = 44100;
 
-    private int frequencyIndex;
+    public int frequencyIndex;
 
     /** Buffer for reading microphone data. */
-    private short[] buffer;
+    public short[] buffer;
 
     /** Array for data passed to fft. Contains scaled {@link #buffer} data. */
-    private float[] fftBuffer;
+    public float[] fftBuffer;
 
     /** Holds the freqs of the previous iteration. */
-    private float[] oldFrequencies;
+    public float[] oldFrequencies;
 
     /** Buffer size. */
-    private int bufferSize;
+    public int bufferSize;
 
     /** Handler used to run move detecting in background. */
-    private Handler mHandler;
+    public Handler mHandler;
 
-    private boolean repeat;
+    public boolean repeat;
 
     /** Fast fourier transform. */
-    private FFT fft;
+    public FFT fft;
 
     /** Calibrator. */
-    private Calibrator calibrator;
+    public Calibrator calibrator;
 
     /** Gestures listener. */
-    private OnGestureListener gestureListener;
+    public OnGestureListener gestureListener;
 
     /** Previous move direction. */
-    private int previousDirection = 0;
+    public int previousDirection = 0;
 
     /** Counter for direction changes. */
-    private int directionChanges;
+    public int directionChanges;
 
     /** Cycles left to read. */
-    private int cyclesLeftToRead = -1;
+    public int cyclesLeftToRead = -1;
 
     /** Cycles left to start recording detecting. */
-    private int cyclesToRefresh;
+    public int cyclesToRefresh;
 
     /** Returns singleton instance of doppler object. */
     public static Doppler getDoppler() {
@@ -97,7 +111,50 @@ public class Doppler {
     }
 
     /** Constructor. For initializing variables. */
-    private Doppler() {
+    public Doppler() {
+        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        if (mBluetoothAdapter == null) {
+            return;
+        }
+        if (!mBluetoothAdapter.isEnabled()) {
+            Intent mIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+        }
+
+        Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
+        for (BluetoothDevice d : pairedDevices) {
+            if (d.getName().equals("HC-06")) {
+                mDevice = d;
+                Log.d(TAG,"now get hc");
+                Log.e("App", d.getName());
+                break;
+            }
+        }
+        try {
+            Log.d("wa","i am here");
+            Pub.btSocket = mDevice.createRfcommSocketToServiceRecord(MY_UUID);
+        } catch (IOException e) {
+            Log.d(TAG,"套接字创建失败！");
+        }
+
+        Log.d(TAG,"成功连接智能小车！可以开始操控了~~~");
+        mBluetoothAdapter.cancelDiscovery();
+        try {
+            Pub.btSocket.connect();
+            Log.d(TAG,"连接成功建立，数据连接打开！");
+        } catch (IOException e) {
+            try {
+                Pub.btSocket.close();
+            } catch (IOException e2) {
+                Log.d(TAG,"连接没有建立，无法关闭套接字！");
+            }
+        }
+        try {
+            Log.d(TAG,"try to get output");
+            Pub.outStream = Pub.btSocket.getOutputStream();
+        } catch (IOException e) {
+        }
+
+
         //write a check to see if stereo is supported
         bufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
         buffer = new short[bufferSize];
@@ -113,9 +170,18 @@ public class Doppler {
 
         calibrator = new Calibrator();
     }
+    public void bluetoothSender(String command){
+        byte[] msgBuffer;
+        msgBuffer = command.getBytes();
+        try {
+            Pub.outStream.write(msgBuffer);
+            Log.d(TAG,"send msg "+command);
+        } catch (IOException e) {
+        }
+    }
 
     /** Sets frequency index. */
-    private void setFrequency(float frequency) {
+    public void setFrequency(float frequency) {
         this.frequencyIndex = fft.freqToIndex(frequency);
     }
 
@@ -156,7 +222,7 @@ public class Doppler {
         return true;
     }
 
-    private int[] getBandwidth() {
+    public int[] getBandwidth() {
         readAndFFT();
 
         //rename this
@@ -232,8 +298,8 @@ public class Doppler {
      * Reads data from microphone.
      * Calls itself recursively while {@link #repeat}
      */
-    private void readMic() {
-        //Log.d("DOPPLER", "readMic");
+    public void readMic() {
+        Log.d("DOPPLER", "readMic");
         int[] bandwidths = getBandwidth();
         int leftBandwidth = bandwidths[LEFT_BANDWIDTH];
         int rightBandwidth = bandwidths[RIGHT_BANDWIDTH];
@@ -280,7 +346,7 @@ public class Doppler {
      * @param leftBandwidth left bandwidth value
      * @param rightBandwidth right bandwidth value
      */
-    private void callGestureCallback(final int leftBandwidth, final int rightBandwidth) {
+    public void callGestureCallback(final int leftBandwidth, final int rightBandwidth) {
         //early escape if need to refresh
         if(gestureListener == null || cyclesToRefresh > 0) {
             cyclesToRefresh--;
@@ -308,9 +374,12 @@ public class Doppler {
             if(directionChanges == 1) {
                 if(previousDirection == -1) {
                     Log.d("DOPPLER", "PUSH!");
+                    Pub.sendMessage("ONA");
+
                     gestureListener.onPush();
                 } else {
                     Log.d("DOPPLER", "PULL!");
+                    Pub.sendMessage("ONB");
                     gestureListener.onPull();
                 }
             } else if(directionChanges == 2) {
@@ -331,7 +400,7 @@ public class Doppler {
     /**
      * Smooths out freq
      */
-    private void smoothOutFrequencies() {
+    public void smoothOutFrequencies() {
         for(int i = 0; i < fft.specSize(); ++i) {
             float smoothedOutMag = SMOOTHING_TIME_CONSTANT * fft.getBand(i) + (1 - SMOOTHING_TIME_CONSTANT) * oldFrequencies[i];
             fft.setBand(i, smoothedOutMag);
@@ -344,7 +413,7 @@ public class Doppler {
      * @param minFreq minimal frequency
      * @param maxFreq maximum frequency
      */
-    private void optimizeFrequency(int minFreq, int maxFreq) {
+    public void optimizeFrequency(int minFreq, int maxFreq) {
         readAndFFT();
         int minInd = fft.freqToIndex(minFreq);
         int maxInd = fft.freqToIndex(maxFreq);
@@ -368,7 +437,7 @@ public class Doppler {
      * @see <a href="http://dsp.stackexchange.com/questions/11312/why-should-one-use-windowing-functions-for-fft">
      *     Why should we use windowing function for FFT</a>
      */
-    private void readAndFFT() {
+    public void readAndFFT() {
         //copy into old freqs array
         if(fft.specSize() != 0 && oldFrequencies == null) {
             oldFrequencies = new float[fft.specSize()];
@@ -407,7 +476,7 @@ public class Doppler {
      * compute nearest higher power of two
      * @see <a href="http://www.graphics.stanford.edu/~seander/bithacks.html">Round up to the next highest power of 2</a>
      */
-    private int getHigherTwoPower(int val) {
+    public int getHigherTwoPower(int val) {
         val--;
         val |= val >> 1;
         val |= val >> 2;
@@ -437,29 +506,29 @@ public class Doppler {
         void onNothing();
     }
 
-    private class Calibrator {
+    public class Calibrator {
 
-        private final static int CYCLE_SIZE = 20;
+        public final static int CYCLE_SIZE = 20;
 
-        private final static int UP_THRESHOLD = 5;
+        public final static int UP_THRESHOLD = 5;
 
-        private final static int DOWN_THRESHOLD = 0;
+        public final static int DOWN_THRESHOLD = 0;
 
-        private final static double UP_AMOUNT = 1.1;
+        public final static double UP_AMOUNT = 1.1;
 
-        private final static double DOWN_AMOUNT = 0.9;
+        public final static double DOWN_AMOUNT = 0.9;
 
-        private final static double MAX = 0.95;
+        public final static double MAX = 0.95;
 
-        private final static double MIN = 0.0001;
+        public final static double MIN = 0.0001;
 
-        private int i = 0;
+        public int i = 0;
 
         /** Direction in which move was detected last time. Used to detect direction changes. */
-        private int previousDirection = 0;
+        public int previousDirection = 0;
 
         /** Counter for direction changes. */
-        private int directionChanges = 0;
+        public int directionChanges = 0;
 
         /**
          * Calibrates volume ratio.
